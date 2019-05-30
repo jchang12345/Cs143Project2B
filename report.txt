@@ -1,0 +1,9 @@
+Question 1:
+
+Functional Dependencies in labeled_data.csv:
+
+Input_id -> labeldem
+Input_id ->labelgop
+Input_id ->labeldjt
+
+Question 2:
