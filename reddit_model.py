@@ -8,7 +8,6 @@ def main(context):
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
 
-
     """
     # TASK 1
     # Code for task 1
@@ -24,43 +23,35 @@ def main(context):
 
     # sudo update-alternatives --config java (choose java version 8)
 
-    readcomments = context.read.parquet("comments.parquet")
-    readsubmissions = context.read.parquet("submissions.parquet")
-    readlabels = context.read.parquet("labels.parquet")
+    comments = context.read.parquet("comments.parquet")
+    submissions = context.read.parquet("submissions.parquet")
+    labels = context.read.parquet("labels.parquet")
+    #comments.show()
+    #submissions.show()
+    #labels.show()
 
-    #wow just fuucking use this one...zzzzzzzzzzzz
-    readcomments.show()
-    readsubmissions.show()
-    readlabels.show()
+    # TASK 2
+    # Code for task 2
+    labeled_comments = labels.join(comments, comments.id == labels.Input_id).select(['Input_id', 'labeldem', 'labelgop', 'labeldjt', 'body'])
+    #labeled_comments.show()
 
-    """
-    # what does this stuff do? - qt
-    from pyspark.sql import SparkSession
-    spark = SparkSession \
-        .builder \
-        .appName("Python Spark SQL basic example") \
-        .config("spark.some.config.option", "some-value") \
-        .getOrCreate()
+    # TASK 3
+    # Code for task 3
+    # Removed from spec
 
-    #df = spark.read.json("submissions.json.bz2")
-    # Displays the content of the DataFrame to stdout
-    #df.show()
-    """
-
-    # Task 2
-
-
-    # Task 3
-
-
-    # Task 4
-    
-
-    def foo(s):
-        return str(s) + "aaaaaaaaa"
+    # TASKS 4, 5
+    # Code for tasks 4 and 5
+    import cleantext
     from pyspark.sql.functions import udf
-    foo = udf(foo)
-    readlabels.select('Input_id', foo('Input_id').alias("aaa")).show()
+
+    def transform_data(text):
+        res = []
+        for gram in cleantext.sanitize(text):
+            res += gram.split()
+        return res
+    
+    transform_data = udf(transform_data)
+    labeled_comments.select('body', transform_data('body').alias("grams")).show()
 
 
 if __name__ == "__main__":
