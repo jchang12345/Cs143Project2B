@@ -3,7 +3,6 @@ from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
 
 
-
 def main(context):
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
@@ -23,17 +22,13 @@ def main(context):
 
     # sudo update-alternatives --config java (choose java version 8)
 
-    comments = context.read.parquet("comments.parquet") #context is spark
+    comments = context.read.parquet("comments.parquet") # context is spark
     submissions = context.read.parquet("submissions.parquet")
     labels = context.read.parquet("labels.parquet")
-    #comments.show()
-    #submissions.show()
-    #labels.show()
 
     # TASK 2
     # Code for task 2
     labeled_comments = labels.join(comments, comments.id == labels.Input_id).select(['Input_id', 'labeldem', 'labelgop', 'labeldjt', 'body'])
-    #labeled_comments.show()
 
     # TASK 3
     # Code for task 3
@@ -49,57 +44,28 @@ def main(context):
             res += gram.split()
         return res
     
-    transform_data = udf(transform_data)
-    labeled_comments.select('Input_id','labeldem','labelgop','labeldjt','body', transform_data('body').alias("grams")).show()
+    udf_transform_data = udf(transform_data)
+    labeled_comments = labeled_comments.select('Input_id', 'labeldem', 'labelgop', 'labeldjt', 'body', udf_transform_data('body').alias("grams"))
     
-    from pyspark.sql.types import ArrayType, StringType, BooleanType, DoubleType, IntegerType
-    #TASK 6
+    # TASK 6A
+    from pyspark.sql.types import ArrayType, StringType, IntegerType
     from pyspark.ml.feature import CountVectorizer
-
-# Input data: Each row is a bag of words with a ID.
-    '''
-    from pyspark.sql import SparkSession
-    from os.path import expanduser, join, abspath
-    warehouse_location = abspath('spark-warehouse')
-    spark = SparkSession \
-    .builder \
-    .appName("Python Spark SQL Hive integration example") \
-    .config("spark.sql.warehouse.dir", warehouse_location) \
-    .enableHiveSupport() \
-    .getOrCreate()
-    df1 = spark.createDataFrame([
-    (0, "a b c".split(" ")),
-    (1, "a b b c a".split(" "))
-    ], ["id", "words"])
-    cv1 = CountVectorizer(inputCol="words", outputCol="features", vocabSize=3, minDF=1.0) #vocab size is count of unique different strings ig
-
-    df1.show()
-    print("i aint a nonetype")
-    model1 = cv1.fit(df1)
-    result1 = model1.transform(df1)
-    result1.show(truncate=False)
-    EXAMPLE IF INTERESTED IN HOW IT WORKS ABOVE
-    '''
-    
-    #Task 6A
-    df=labeled_comments.select('Input_id','labeldem','labelgop','labeldjt','body', transform_data('body').alias("grams"))
     from pyspark.sql.functions import col, split
-    df=df.withColumn("grams", split(col("grams"), ",\s*").cast(ArrayType(StringType())).alias("grams"))
-    #df.show()
+
+    labeled_comments = labeled_comments.withColumn("grams", split(col("grams"), ",\s*").cast(ArrayType(StringType())).alias("grams"))
 
     cv = CountVectorizer(inputCol="grams", outputCol="features", binary=True, minDF=10.0)
-    model = cv.fit(df)
-    result = model.transform(df)
-    result.show()
+    model = cv.fit(labeled_comments)
+    result = model.transform(labeled_comments)
 
-    #Task 6B
-
+    # TASK 6B
     def fp(row):
-        if row== 1:
+        if row == 1:
             val = 1
         else:
            val = 0
         return val
+
     def fn(row):
         if row == -1:
            val = 1
@@ -107,89 +73,106 @@ def main(context):
            val = 0
         return val
 
-
-    import pyspark.sql.functions as f
-    #result['label']=result.apply(fp, axis=1) #fake news btw, apply doesnt work here
-    positive_df=result
     fp = udf(fp)
-    fn =udf(fn)
-    positive_df=result.select("*", fp('labeldjt').alias("label")) #it may not seem like it, but this code segment here almost killed me
-    negative_df=result.select("*", fn('labeldjt').alias("label"))
-    positive_df=positive_df.withColumn("label", (col("label")).cast(IntegerType()).alias("label"))#it may not seem like it, but this code segment here almost killed me
-    negative_df=negative_df.withColumn("label", (col("label")).cast(IntegerType()).alias("label"))
+    fn = udf(fn)
+    positive_df = result.select("*", fp('labeldjt').alias("label")) #it may not seem like it, but this code segment here almost killed me
+    negative_df = result.select("*", fn('labeldjt').alias("label"))
+    positive_df = positive_df.withColumn("label", (col("label")).cast(IntegerType()).alias("label")) #it may not seem like it, but this code segment here almost killed me
+    negative_df = negative_df.withColumn("label", (col("label")).cast(IntegerType()).alias("label"))
 
-    positive_df.show()
-    negative_df.show()
-
-
-    #Task 7
+    # TASK 7
     #MAKE SURE TO UNCOMMONT OUT THE triple ' to create the model!
+    """
     # Bunch of imports (may need more)
-    '''
     from pyspark.ml.classification import LogisticRegression
     from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
     from pyspark.ml.evaluation import BinaryClassificationEvaluator
 
-# Initialize two logistic regression models.
-# Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
+    # Initialize two logistic regression models.
+    # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
     poslr = LogisticRegression(labelCol="label", featuresCol="features", maxIter=10).setThreshold(0.25)
     neglr = LogisticRegression(labelCol="label", featuresCol="features", maxIter=10).setThreshold(0.25)
-# This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
+    # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
     posEvaluator = BinaryClassificationEvaluator()
     negEvaluator = BinaryClassificationEvaluator()
-# There are a few parameters associated with logistic regression. We do not know what they are a priori.
-# We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
-# We will assume the parameter is 1.0. Grid search takes forever.
+    # There are a few parameters associated with logistic regression. We do not know what they are a priori.
+    # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
+    # We will assume the parameter is 1.0. Grid search takes forever.
     posParamGrid = ParamGridBuilder().addGrid(poslr.regParam, [1.0]).build()
     negParamGrid = ParamGridBuilder().addGrid(neglr.regParam, [1.0]).build()
     # We initialize a 5 fold cross-validation pipeline.
     posCrossval = CrossValidator(
-    estimator=poslr,
-    evaluator=posEvaluator,
-    estimatorParamMaps=posParamGrid,
-    numFolds=5)
+        estimator=poslr,
+        evaluator=posEvaluator,
+        estimatorParamMaps=posParamGrid,
+        numFolds=5)
     negCrossval = CrossValidator(
-    estimator=neglr,
-    evaluator=negEvaluator,
-    estimatorParamMaps=negParamGrid,
-    numFolds=5)
-# Although crossvalidation creates its own train/test sets for
-# tuning, we still need a labeled test set, because it is not
-# accessible from the crossvalidator (argh!)
-# Split the data 50/50
+        estimator=neglr,
+        evaluator=negEvaluator,
+        estimatorParamMaps=negParamGrid,
+        numFolds=5)
+    # Although crossvalidation creates its own train/test sets for
+    # tuning, we still need a labeled test set, because it is not
+    # accessible from the crossvalidator (argh!)
+    # Split the data 50/50
     posTrain, posTest = positive_df.randomSplit([0.5, 0.5])
     negTrain, negTest = negative_df.randomSplit([0.5, 0.5])
-# Train the models
+    # Train the models
     print("Training positive classifier...")
     posModel = posCrossval.fit(posTrain)
     print("Training negative classifier...")
     negModel = negCrossval.fit(negTrain)
 
-# Once we train the models, we don't want to do it again. We can save the models and load them again later.
+    # Once we train the models, we don't want to do it again. We can save the models and load them again later.
     posModel.save("project2/pos.model")
     negModel.save("project2/neg.model")
-'''
-#Task 8
-	
-	#TODO: join submissions and comments, but need to get state. think the utc thing was timestamp of when comment created, and tilte submission was obtained from join, but the 3rd one we need to strip and do a bit more work. leaving that to u
-    #actually doesnt work so rip, i kidna give up for now. current error: 
-#AnalysisException: "Reference 'created_utc' is ambiguous, could be: created_utc, created_utc.;"
-#i tried to do something like comments.created_utc but that also doesnt work 
-    #more_comments = submissions.join(comments, comments.link_id == submissions.id).select(['created_utc', 'title', 'author_flair_text'])#, 'labeldjt', 'body'])
-    #comments.show()
-    #submissions.show()
-    #more_comments.show()
+    """
 
+    # TASK 8
+	# Code for task 8
+    from pyspark.ml.tuning import CrossValidatorModel
 
+    c = comments.select('created_utc', 'body', col('author_flair_text').alias('state'), udf(lambda x : x[3:])('link_id').alias('link_id'))
+    s = submissions.select('id', 'title')
+    cs = s.join(c, c.link_id == s.id)
 
+    # TASK 9
+    # Code for task 9
+    cs = cs.filter(~cs.body.contains('/s') & ~cs.body.startswith('&gt;'))
+    cs = cs.select('created_utc', 'title', 'state', 'id', udf_transform_data('body').alias("grams"))
+    cs = cs.withColumn("grams", split(col("grams"), ",\s*").cast(ArrayType(StringType())).alias("grams"))
+    cs = model.transform(cs)
+    pos_model = CrossValidatorModel.load("project2/pos.model")
+    neg_model = CrossValidatorModel.load("project2/neg.model")
+    pos_result = pos_model.transform(cs)
+    neg_result = neg_model.transform(cs)
 
+    pos_result = pos_result.select('*', udf(lambda x : 1 if x[1] > 0.2 else 0)('probability').alias('pos').cast(IntegerType()))
+    neg_result = neg_result.select('*', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()))
+    pos_result.show()
+    neg_result.show()
 
+    # TASK 10
+    # Code for task 10
+    # states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    pos_sum = pos_result.groupBy().sum('pos').collect()[0][0]
+    pos_count = pos_result.count()
+    print(pos_sum)
+    print(pos_count)
+    print(pos_sum / pos_count)
+
+    neg_sum = neg_result.groupBy().sum('neg').collect()[0][0]
+    neg_count = neg_result.count()
+    print(neg_sum)
+    print(neg_count)
+    print(neg_sum / neg_count)
 
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
     conf = conf.setMaster("local[*]")
     sc   = SparkContext(conf=conf)
+    sc.setLogLevel("WARN") # remove b4 submit
     sqlContext = SQLContext(sc)
     sc.addPyFile("cleantext.py")
     main(sqlContext)
