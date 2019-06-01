@@ -77,7 +77,7 @@ The rename the files to get rid of the ?raw=true
 # Lambert Conformal map of lower 48 states.
 m = Basemap(llcrnrlon=-119, llcrnrlat=22, urcrnrlon=-64, urcrnrlat=49,
         projection='lcc', lat_1=33, lat_2=45, lon_0=-95)
-shp_info = m.readshapefile('/path_to/st99_d00','states',drawbounds=True)  # No extension specified in path here.
+shp_info = m.readshapefile('./st99_d00','states',drawbounds=True)  # No extension specified in path here.
 pos_data = dict(zip(state_data.state, state_data.Positive))
 neg_data = dict(zip(state_data.state, state_data.Negative))
 
@@ -86,6 +86,9 @@ pos_colors = {}
 statenames = []
 pos_cmap = plt.cm.Greens # use 'hot' colormap
 
+neg_colors = {}
+neg_cmap = plt.cm.Greens # use 'hot' colormap
+
 vmin = 0; vmax = 1 # set range.
 for shapedict in m.states_info:
     statename = shapedict['NAME']
@@ -93,6 +96,14 @@ for shapedict in m.states_info:
     if statename not in ['District of Columbia', 'Puerto Rico']:
         pos = pos_data[statename]
         pos_colors[statename] = pos_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
+    statenames.append(statename)
+
+for shapedict in m.states_info:
+    statename = shapedict['NAME']
+    # skip DC and Puerto Rico.
+    if statename not in ['District of Columbia', 'Puerto Rico']:
+        neg = neg_data[statename]
+        neg_colors[statename] = neg_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
 # cycle through state names, color each one.
 
@@ -105,14 +116,55 @@ for nshape, seg in enumerate(m.states):
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
 plt.title('Positive Trump Sentiment Across the US')
-plt.savefig("mycoolmap.png")
+plt.savefig("part2posMap.png")
 
+
+
+# NEGATIVE MAP
+ax = plt.gca() # get current axes instance
+for nshape, seg in enumerate(m.states):
+    # skip Puerto Rico and DC
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+        color = rgb2hex(neg_colors[statenames[nshape]]) 
+        poly = Polygon(seg, facecolor=color, edgecolor=color)
+        ax.add_patch(poly)
+plt.title('Negative Trump Sentiment Across the US')
+plt.savefig("part2negMap.png")
 
 # SOURCE: https://stackoverflow.com/questions/39742305/how-to-use-basemap-python-to-plot-us-with-50-states
 # (this misses Alaska and Hawaii. If you can get them to work, EXTRA CREDIT)
 
+#PART 3 DIFFERENCES IN SENTIMENT which is %pos-%neg map
+
+different_colors={}
+different_cmap=plt.cm.Greens #use 'hot' colormap
+for shapedict in m.states_info:
+    statename = shapedict['NAME']
+    # skip DC and Puerto Rico.
+    if statename not in ['District of Columbia', 'Puerto Rico']:
+        difference = pos_data[statename]-neg_data[statename]
+        flip=1
+        if difference < 0:
+          flip=-1
+        #flipping back to positive so we have absolute difference.
+        different_colors[statename] = different_cmap(1. - np.sqrt(( difference - vmin )/( vmax - vmin)))[:3]
+    statenames.append(statename)
+
+# DIFFERENCE MAP
+ax = plt.gca() # get current axes instance
+for nshape, seg in enumerate(m.states):
+    # skip Puerto Rico and DC
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+        color = rgb2hex(different_colors[statenames[nshape]]) 
+        poly = Polygon(seg, facecolor=color, edgecolor=color)
+        ax.add_patch(poly)
+plt.title('Difference Trump Sentiment Across the US')
+plt.savefig("part2differenceMap.png")
+
+
+
 """
-PART 4 SHOULD BE DONE IN SPARK
+PART 4 SHOULD BE DONE IN SPARK, list of top 10 positive negative stories
 """
 
 """
