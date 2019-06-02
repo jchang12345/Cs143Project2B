@@ -36,7 +36,7 @@ PLOT 1: SENTIMENT OVER TIME (TIME SERIES PLOT)
 # Assumes a file called time_data.csv that has columns
 # date, Positive, Negative. Use absolute path.
 
-ts = pd.read_csv("time_data.csv")
+ts = pd.read_csv("time_data1.csv")
 # Remove erroneous row.
 ts = ts[ts['date'] != '2018-12-31']
 
@@ -60,7 +60,7 @@ PLOT 2: SENTIMENT BY STATE (POSITIVE AND NEGATIVE SEPARATELY)
 #
 # You should use the FULL PATH to the file, just in case.
 
-state_data = pd.read_csv("state_data.csv")
+state_data = pd.read_csv("state_data1.csv")
 
 """
 You also need to download the following files. Put them somewhere convenient:
@@ -77,7 +77,7 @@ The rename the files to get rid of the ?raw=true
 # Lambert Conformal map of lower 48 states.
 m = Basemap(llcrnrlon=-119, llcrnrlat=22, urcrnrlon=-64, urcrnrlat=49,
         projection='lcc', lat_1=33, lat_2=45, lon_0=-95)
-shp_info = m.readshapefile('./st99_d00','states',drawbounds=True)  # No extension specified in path here.
+shp_info = m.readshapefile('st99_d00','states',drawbounds=True)  # No extension specified in path here.
 pos_data = dict(zip(state_data.state, state_data.Positive))
 neg_data = dict(zip(state_data.state, state_data.Negative))
 
@@ -92,8 +92,9 @@ neg_cmap = plt.cm.Greens # use 'hot' colormap
 vmin = 0; vmax = 1 # set range.
 for shapedict in m.states_info:
     statename = shapedict['NAME']
+    #print(m.states_info)
     # skip DC and Puerto Rico.
-    if statename not in ['District of Columbia', 'Puerto Rico']:
+    if statename not in ['District of Columbia', 'Puerto Rico', '']:
         pos = pos_data[statename]
         pos_colors[statename] = pos_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
@@ -101,7 +102,7 @@ for shapedict in m.states_info:
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     # skip DC and Puerto Rico.
-    if statename not in ['District of Columbia', 'Puerto Rico']:
+    if statename not in ['District of Columbia', 'Puerto Rico', '']:
         neg = neg_data[statename]
         neg_colors[statename] = neg_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
@@ -111,7 +112,7 @@ for shapedict in m.states_info:
 ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico', '']:
         color = rgb2hex(pos_colors[statenames[nshape]]) 
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
@@ -124,7 +125,7 @@ plt.savefig("part2posMap.png")
 ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico', '']:
         color = rgb2hex(neg_colors[statenames[nshape]]) 
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
@@ -141,20 +142,20 @@ different_cmap=plt.cm.Greens #use 'hot' colormap
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     # skip DC and Puerto Rico.
-    if statename not in ['District of Columbia', 'Puerto Rico']:
+    if statename not in ['District of Columbia', 'Puerto Rico', '']:
         difference = pos_data[statename]-neg_data[statename]
         flip=1
         if difference < 0:
           flip=-1
         #flipping back to positive so we have absolute difference.
-        different_colors[statename] = different_cmap(1. - np.sqrt(( difference - vmin )/( vmax - vmin)))[:3]
+        different_colors[statename] = different_cmap(1. - (abs( difference - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
 
 # DIFFERENCE MAP
 ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico', '']:
         color = rgb2hex(different_colors[statenames[nshape]]) 
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
@@ -177,7 +178,7 @@ PLOT 5A: SENTIMENT BY STORY SCORE
 # Assumes a CSV file called submission_score.csv with the following coluns
 # submission_score, Positive, Negative
 
-story = pd.read_csv("submission_score.csv")
+story = pd.read_csv("submission_score1.csv")
 plt.figure(figsize=(12,5))
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -200,7 +201,7 @@ PLOT 5B: SENTIMENT BY COMMENT SCORE
 # Assumes a CSV file called comment_score.csv with the following columns
 # comment_score, Positive, Negative
 
-story = pd.read_csv("comment_score.csv")
+story = pd.read_csv("comment_score1.csv")
 plt.figure(figsize=(12,5))
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
