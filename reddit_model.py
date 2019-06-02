@@ -124,7 +124,7 @@ def main(context):
 
     # TASK 8
 	# Code for task 8
-    c = comments.sample(False, 0.02, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate.
+    c = comments.sample(False, 0.1, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate. trying 0.1 now.
     #c=comments
     c = c.select('created_utc', 'body', col('score').alias('comment_score'), col('author_flair_text').alias('state'), udf(lambda x : x[3:])('link_id').alias('link_id'))
     c = c.filter(~c.body.contains('/s') & ~c.body.startswith('&gt;'))
@@ -150,14 +150,14 @@ def main(context):
     import pyspark.sql.functions as func
     # 10.1
     #REMOVE THE COMMENT BY UNCOMMENTING WHEN SUBMIT, dont need to optimize these for now
-    #id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    #id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
+    id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg')) #need to get it to also have title column not just link_id
+    id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
 
     #id_count.show()
     #id_values.show()
 
-    #id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    #id_values_ratio=id_values_ratio.select('link_id','Positive','Negative')
+    id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    id_values_ratio=id_values_ratio.select('link_id','title','Positive','Negative')
     #id_values_ratio.show()
     
 
@@ -211,13 +211,13 @@ def main(context):
     #PLOTS
     #utc_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("time_data.csv")
     #state_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("state_data.csv")
-    #need to filter top 10 for task 3 on plots
+    #need to filter top 10 for task 10.1 on plots
     #here it is
 
     #the time_data and state_data csvs were good, but still need the bottom 4 csvs. takes 8 minutes to work on 0.02 of the comment data
-    
-    submission_score_values_ratio.orderBy("Positive", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Positive_Submissions.csv")
-    submission_score_values_ratio.orderBy("Negative", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Negative_Submissions.csv") #idk if this is good
+    #we also want the titles! not just the id.
+    id_values_ratio.orderBy("Positive", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Positive_Submissions.csv")
+    id_values_ratio.orderBy("Negative", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Negative_Submissions.csv") #idk if this is good
 
     #last 2 csv
     submission_score_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("submission_score.csv") #NOTE this should be doing something with like limit 10 based on spec. so dataframe should be limiting this, or i can limit it in between somewhere.
