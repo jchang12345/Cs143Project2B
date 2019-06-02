@@ -139,8 +139,8 @@ def main(context):
     pos_result = pos_model.transform(cs)
     neg_result = neg_model.transform(cs)
 
-    pos_result = pos_result.select('created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.2 else 0)('probability').alias('pos').cast(IntegerType()))
-    neg_result = neg_result.select('created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()))
+    pos_result = pos_result.select('link_id', 'created_utc', 'state', 'comment_score', 'submission_score', 'title', udf(lambda x : 1 if x[1] > 0.2 else 0)('probability').alias('pos').cast(IntegerType()))
+    neg_result = neg_result.select('link_id', 'created_utc', 'state', 'comment_score', 'submission_score', 'title', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()))
     #pos_result.show()
     #neg_result.show()
 
@@ -170,8 +170,8 @@ def main(context):
 
     utc_pos_ratio = utc_pos.join(utc_count, utc_count.date == utc_pos.date).withColumn('percentage', col('count') / col('total'))
     utc_neg_ratio = utc_neg.join(utc_count, utc_count.date == utc_neg.date).withColumn('percentage', col('count') / col('total'))
-    utc_pos_ratio.show()
-    utc_neg_ratio.show()
+    #utc_pos_ratio.show()
+    #utc_neg_ratio.show()
 
     # 10.3
     states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
@@ -187,7 +187,32 @@ def main(context):
     #state_pos_ratio.show()
     #state_neg_ratio.show()
 
-    # 10.4
+    # 10.4.comments_score
+    comment_score_pos = pos_result.groupBy('comment_score').agg(func.sum('pos').alias('count'))
+    comment_score_neg = neg_result.groupBy('comment_score').agg(func.sum('neg').alias('count'))
+    comment_score_count = pos_result.groupby('comment_score').agg(func.count('*').alias('total'))
+    #comment_score_pos.show()
+    #comment_score_neg.show()
+    #comment_score_count.show()
+
+    comment_score_pos_ratio = comment_score_pos.join(comment_score_count, comment_score_count.comment_score == comment_score_pos.comment_score).withColumn('percentage', col('count') / col('total'))
+    comment_score_neg_ratio = comment_score_neg.join(comment_score_count, comment_score_count.comment_score == comment_score_neg.comment_score).withColumn('percentage', col('count') / col('total'))
+    #comment_score_pos_ratio.show()
+    #comment_score_neg_ratio.show()
+
+    # 10.4.submissions_score
+    submission_score_pos = pos_result.groupBy('submission_score').agg(func.sum('pos').alias('count'))
+    submission_score_neg = neg_result.groupBy('submission_score').agg(func.sum('neg').alias('count'))
+    submission_score_count = pos_result.groupby('submission_score').agg(func.count('*').alias('total'))
+    #submission_score_pos.show()
+    #submission_score_neg.show()
+    #submission_score_count.show()
+
+    submission_score_pos_ratio = submission_score_pos.join(submission_score_count, submission_score_count.submission_score == submission_score_pos.submission_score).withColumn('percentage', col('count') / col('total'))
+    submission_score_neg_ratio = submission_score_neg.join(submission_score_count, submission_score_count.submission_score == submission_score_neg.submission_score).withColumn('percentage', col('count') / col('total'))
+    #submission_score_pos_ratio.show()
+    #submission_score_neg_ratio.show()
+
 
     
 
