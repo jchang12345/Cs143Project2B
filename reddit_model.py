@@ -147,6 +147,7 @@ def main(context):
     # TASK 10
     # Code for task 10
     import pyspark.sql.functions as func
+    # 10.1
     id_pos = pos_result.groupBy('link_id').agg(func.sum('pos').alias('count'))
     id_neg = neg_result.groupBy('link_id').agg(func.sum('neg').alias('count'))
     id_count = pos_result.groupBy('link_id').agg(func.count('*').alias('total'))
@@ -159,6 +160,15 @@ def main(context):
     #id_pos_ratio.show()
     #id_neg_ratio.show()
 
+    # 10.2
+    utc_pos = pos_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.sum('pos').alias('count'))
+    utc_neg = neg_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.sum('neg').alias('count'))
+    neg_count = neg_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.count('*').alias('total'))
+    utc_pos.show()
+    utc_neg.show()
+    neg_count.show()
+
+    # 10.3
     states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
     state_pos = pos_result.filter(col('state').isin(states)).groupBy('state').agg(func.sum('pos').alias('count'))
     state_neg = neg_result.filter(col('state').isin(states)).groupBy('state').agg(func.sum('neg').alias('count'))
@@ -171,6 +181,9 @@ def main(context):
     state_neg_ratio = state_neg.join(state_count, state_count.state == state_neg.state).withColumn('percentage', col('count') / col('total'))
     #state_pos_ratio.show()
     #state_neg_ratio.show()
+
+    # 10.4
+
     
 
 if __name__ == "__main__":
