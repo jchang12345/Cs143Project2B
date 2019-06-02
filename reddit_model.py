@@ -162,15 +162,15 @@ def main(context):
 
 
     # 10.2
-    utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy/MM/dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy/MM/dd').alias('date')).agg(func.count('*').alias('total'))
+    utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('date')).agg(func.count('*').alias('total'))
     
     #utc_values.show()
     #utc_count.show()
 
     utc_values_ratio = utc_values.join(utc_count, utc_count.date == utc_values.d).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
     utc_values_ratio=utc_values_ratio.select('date','Positive','Negative')
-    #utc_values_ratio.show() #works
+    utc_values_ratio.show() #works
 
 
     # 10.3
