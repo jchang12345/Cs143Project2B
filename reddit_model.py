@@ -8,11 +8,12 @@ def main(context):
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
 
+    read_data = False
     create_models = False
 
     # TASK 1
     # Code for task 1
-    if create_models:
+    if read_data:
         sqlContext = SQLContext(context)
         comments = sqlContext.read.json("comments-minimal.json.bz2")
         submissions = sqlContext.read.json("submissions.json.bz2")
@@ -28,7 +29,7 @@ def main(context):
 
     # TASK 2
     # Code for task 2
-    if create_models:
+    if read_data:
         labeled_comments = labels.join(comments, comments.id == labels.Input_id).select(['Input_id', 'labeldem', 'labelgop', 'labeldjt', 'body'])
 
     # TASK 3
@@ -61,9 +62,9 @@ def main(context):
         cv = CountVectorizer(inputCol="grams", outputCol="features", binary=True, minDF=10.0)
         model = cv.fit(labeled_comments)
         result = model.transform(labeled_comments)
-        model.save('project2/countvectorizer.model')
+        model.save('countvectorizer.model')
     else:
-        model = CountVectorizerModel.load("project2/countvectorizer.model")
+        model = CountVectorizerModel.load("countvectorizer.model")
 
     # TASK 6B
     if create_models:
@@ -115,16 +116,16 @@ def main(context):
         neg_model = negCrossval.fit(negTrain)
 
         # Once we train the models, we don't want to do it again. We can save the models and load them again later.
-        pos_model.save("project2/pos.model")
-        neg_model.save("project2/neg.model")
+        pos_model.save("pos.model")
+        neg_model.save("neg.model")
     else:
         from pyspark.ml.tuning import CrossValidatorModel
-        pos_model = CrossValidatorModel.load("project2/pos.model")
-        neg_model = CrossValidatorModel.load("project2/neg.model")
+        pos_model = CrossValidatorModel.load("pos.model")
+        neg_model = CrossValidatorModel.load("neg.model")
 
     # TASK 8
 	# Code for task 8
-    c = comments.sample(False, 0.1, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate. trying 0.1 now.
+    c = comments.sample(False, 0.001, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate. trying 0.1 now.
     #c=comments
     c = c.select('created_utc', 'body', col('score').alias('comment_score'), col('author_flair_text').alias('state'), udf(lambda x : x[3:])('link_id').alias('link_id'))
     c = c.filter(~c.body.contains('/s') & ~c.body.startswith('&gt;'))
@@ -140,10 +141,10 @@ def main(context):
     pos_result = pos_model.transform(cs)
     pos_result = pos_result.select('comment_score', 'submission_score','created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.2 else 0)('probability').alias('pos').cast(IntegerType()),col('rawPrediction').alias('pos_rawPrediction'),col('prediction').alias('pos_pred'), 'features')
     t_result = neg_model.transform(pos_result)
+    #pos_result.show()
 
     t_result = t_result.select('comment_score', 'submission_score','created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()),'pos',col('rawPrediction').alias('neg_rawPrediction'),col('prediction').alias('neg_pred'), 'pos_rawPrediction', 'pos_pred')
-    #pos_result.show()
-    #t_result.show()
+    t_result.show()
 
     # TASK 10
     # Code for task 10
@@ -151,17 +152,11 @@ def main(context):
     # 10.1
     #REMOVE THE COMMENT BY UNCOMMENTING WHEN SUBMIT, dont need to optimize these for now
     id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg')) #need to get it to also have title column not just link_id
-    id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
-
-    #id_count.show()
-    #id_values.show()
+    id_count = t_result.groupBy('link_id', 'title').agg(func.count('*').alias('total'))
 
     id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
     id_values_ratio=id_values_ratio.select('link_id','title','Positive','Negative')
     #id_values_ratio.show()
-    
-
-
 
     # 10.2
     #utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
@@ -188,7 +183,6 @@ def main(context):
 
     # 10.4.comments_score
     #i think the thing is just taking forever to save the files to csv though, not sure if its a join issue. but feel free to optimize that
-
     comment_score_values = t_result.groupBy(col('comment_score').alias('c_score')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
     comment_score_count = t_result.groupby('comment_score').agg(func.count('*').alias('total'))
     #comment_score_count.show()
