@@ -141,8 +141,8 @@ def main(context):
 
     pos_result = pos_result.select('created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.2 else 0)('probability').alias('pos').cast(IntegerType()))
     neg_result = neg_result.select('created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()))
-    pos_result.show()
-    neg_result.show()
+    #pos_result.show()
+    #neg_result.show()
 
     # TASK 10
     # Code for task 10
@@ -161,12 +161,17 @@ def main(context):
     #id_neg_ratio.show()
 
     # 10.2
-    utc_pos = pos_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.sum('pos').alias('count'))
-    utc_neg = neg_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.sum('neg').alias('count'))
-    neg_count = neg_result.groupBy(func.from_unixtime(func.unix_timestamp('created_utc', 'MM/dd/yyy'))).agg(func.count('*').alias('total'))
-    utc_pos.show()
-    utc_neg.show()
-    neg_count.show()
+    utc_pos = pos_result.groupBy(func.from_unixtime('created_utc', 'MM/dd/yyy').alias('date')).agg(func.sum('pos').alias('count'))
+    utc_neg = neg_result.groupBy(func.from_unixtime('created_utc', 'MM/dd/yyy').alias('date')).agg(func.sum('neg').alias('count'))
+    utc_count = pos_result.groupBy(func.from_unixtime('created_utc', 'MM/dd/yyy').alias('date')).agg(func.count('*').alias('total'))
+    #utc_pos.show()
+    #utc_neg.show()
+    #utc_count.show()
+
+    utc_pos_ratio = utc_pos.join(utc_count, utc_count.date == utc_pos.date).withColumn('percentage', col('count') / col('total'))
+    utc_neg_ratio = utc_neg.join(utc_count, utc_count.date == utc_neg.date).withColumn('percentage', col('count') / col('total'))
+    utc_pos_ratio.show()
+    utc_neg_ratio.show()
 
     # 10.3
     states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
