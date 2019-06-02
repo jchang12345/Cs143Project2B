@@ -124,7 +124,8 @@ def main(context):
 
     # TASK 8
 	# Code for task 8
-    c = comments.sample(False, 0.001, None) # remove before submit
+    c = comments.sample(False, 0.02, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate.
+    #c=comments
     c = c.select('created_utc', 'body', col('score').alias('comment_score'), col('author_flair_text').alias('state'), udf(lambda x : x[3:])('link_id').alias('link_id'))
     c = c.filter(~c.body.contains('/s') & ~c.body.startswith('&gt;'))
     s = submissions.select('id', 'title', col('score').alias('submission_score'))
@@ -148,43 +149,46 @@ def main(context):
     # Code for task 10
     import pyspark.sql.functions as func
     # 10.1
-    id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
+    #REMOVE THE COMMENT BY UNCOMMENTING WHEN SUBMIT, dont need to optimize these for now
+    #id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    #id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
 
     #id_count.show()
     #id_values.show()
 
-    id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    id_values_ratio=id_values_ratio.select('link_id','Positive','Negative')
+    #id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    #id_values_ratio=id_values_ratio.select('link_id','Positive','Negative')
     #id_values_ratio.show()
     
 
 
 
     # 10.2
-    utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('date')).agg(func.count('*').alias('total'))
+    #utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    #utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('date')).agg(func.count('*').alias('total'))
     
     #utc_values.show()
     #utc_count.show()
 
-    utc_values_ratio = utc_values.join(utc_count, utc_count.date == utc_values.d).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    utc_values_ratio=utc_values_ratio.select('date','Positive','Negative')
-    utc_values_ratio.show() #works
+    #utc_values_ratio = utc_values.join(utc_count, utc_count.date == utc_values.d).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    #utc_values_ratio=utc_values_ratio.select('date','Positive','Negative')
+    #utc_values_ratio.show() #works
 
 
     # 10.3
-    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    state_values = t_result.filter(col('state').isin(states)).groupBy(col('state').alias('s')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    state_count = t_result.filter(col('state').isin(states)).groupBy('state').agg(func.count('*').alias('total'))
+    #states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    #state_values = t_result.filter(col('state').isin(states)).groupBy(col('state').alias('s')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    #state_count = t_result.filter(col('state').isin(states)).groupBy('state').agg(func.count('*').alias('total'))
     #state_count.show()
 
-    state_values_ratio = state_values.join(state_count, state_count.state == state_values.s).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    state_values_ratio=state_values_ratio.select('state','Positive','Negative')
+    #state_values_ratio = state_values.join(state_count, state_count.state == state_values.s).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    #state_values_ratio=state_values_ratio.select('state','Positive','Negative')
     #state_values_ratio.show() #this is good now
 
 
     # 10.4.comments_score
+    #i think the thing is just taking forever to save the files to csv though, not sure if its a join issue. but feel free to optimize that
+
     comment_score_values = t_result.groupBy(col('comment_score').alias('c_score')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
     comment_score_count = t_result.groupby('comment_score').agg(func.count('*').alias('total'))
     #comment_score_count.show()
@@ -200,15 +204,18 @@ def main(context):
 
     submission_score_values_ratio = submission_score_values.join(submission_score_count, submission_score_count.submission_score == submission_score_values.s_score).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
     submission_score_values_ratio=submission_score_values_ratio.select('submission_score','Positive','Negative')
-    submission_score_values_ratio.show() #works
+    #submission_score_values_ratio.show() #works
 
 
 
     #PLOTS
-    utc_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("time_data.csv")
-    state_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("state_data.csv")
+    #utc_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("time_data.csv")
+    #state_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("state_data.csv")
     #need to filter top 10 for task 3 on plots
     #here it is
+
+    #the time_data and state_data csvs were good, but still need the bottom 4 csvs. takes 8 minutes to work on 0.02 of the comment data
+    
     submission_score_values_ratio.orderBy("Positive", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Positive_Submissions.csv")
     submission_score_values_ratio.orderBy("Negative", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Negative_Submissions.csv") #idk if this is good
 
