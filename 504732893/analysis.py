@@ -104,7 +104,7 @@ for shapedict in m.states_info:
     # skip DC and Puerto Rico.
     if statename not in ['District of Columbia', 'Puerto Rico', '']:
         neg = neg_data[statename]
-        neg_colors[statename] = neg_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
+        neg_colors[statename] = neg_cmap(1. - np.sqrt(( neg - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
 # cycle through state names, color each one.
 
