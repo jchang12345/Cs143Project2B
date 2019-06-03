@@ -87,9 +87,9 @@ statenames = []
 pos_cmap = plt.cm.Greens # use 'hot' colormap
 
 neg_colors = {}
-neg_cmap = plt.cm.Greens # use 'hot' colormap
+neg_cmap = plt.cm.Reds # use 'hot' colormap
 
-vmin = 0; vmax = 1 # set range.
+vmin = 0; vmax = 10 # set range.
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     #print(m.states_info)
@@ -98,6 +98,8 @@ for shapedict in m.states_info:
         pos = pos_data[statename]
         pos_colors[statename] = pos_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
     statenames.append(statename)
+
+vmin = 0; vmax = 10 # set range for neg.
 
 for shapedict in m.states_info:
     statename = shapedict['NAME']
@@ -112,7 +114,7 @@ for shapedict in m.states_info:
 ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico', '']:
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
         color = rgb2hex(pos_colors[statenames[nshape]]) 
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
@@ -125,7 +127,7 @@ plt.savefig("part2posMap.png")
 ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico', '']:
+    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
         color = rgb2hex(neg_colors[statenames[nshape]]) 
         poly = Polygon(seg, facecolor=color, edgecolor=color)
         ax.add_patch(poly)
@@ -138,7 +140,7 @@ plt.savefig("part2negMap.png")
 #PART 3 DIFFERENCES IN SENTIMENT which is %pos-%neg map
 
 different_colors={}
-different_cmap=plt.cm.Greens #use 'hot' colormap
+different_cmap=plt.cm.Reds #use 'hot' colormap
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     # skip DC and Puerto Rico.
