@@ -8,11 +8,12 @@ def main(context):
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
 
-    create_models = False
+    read_data = True
+    create_models = True
 
     # TASK 1
     # Code for task 1
-    if create_models:
+    if read_data:
         sqlContext = SQLContext(context)
         comments = sqlContext.read.json("comments-minimal.json.bz2")
         submissions = sqlContext.read.json("submissions.json.bz2")
@@ -28,7 +29,7 @@ def main(context):
 
     # TASK 2
     # Code for task 2
-    if create_models:
+    if read_data:
         labeled_comments = labels.join(comments, comments.id == labels.Input_id).select(['Input_id', 'labeldem', 'labelgop', 'labeldjt', 'body'])
 
     # TASK 3
@@ -61,9 +62,9 @@ def main(context):
         cv = CountVectorizer(inputCol="grams", outputCol="features", binary=True, minDF=10.0)
         model = cv.fit(labeled_comments)
         result = model.transform(labeled_comments)
-        model.save('project2/countvectorizer.model')
+        model.save('countvectorizer.model')
     else:
-        model = CountVectorizerModel.load("project2/countvectorizer.model")
+        model = CountVectorizerModel.load("countvectorizer.model")
 
     # TASK 6B
     if create_models:
@@ -115,17 +116,17 @@ def main(context):
         neg_model = negCrossval.fit(negTrain)
 
         # Once we train the models, we don't want to do it again. We can save the models and load them again later.
-        pos_model.save("project2/pos.model")
-        neg_model.save("project2/neg.model")
+        pos_model.save("pos.model")
+        neg_model.save("neg.model")
     else:
         from pyspark.ml.tuning import CrossValidatorModel
-        pos_model = CrossValidatorModel.load("project2/pos.model")
-        neg_model = CrossValidatorModel.load("project2/neg.model")
+        pos_model = CrossValidatorModel.load("pos.model")
+        neg_model = CrossValidatorModel.load("neg.model")
 
     # TASK 8
-	# Code for task 8
-    #c = comments.sample(False, 0.1, None) # remove before submit, i changed to 0.02, currently it takes 8 minute per csv file to generate. trying 0.1 now.
-    c=comments #full pwer 100% of data, takes several hours (like 6.5 hours per task)
+    # Code for task 8
+    c = comments.sample(False, 0.001, None) 
+    #c=comments
     c = c.select('created_utc', 'body', col('score').alias('comment_score'), col('author_flair_text').alias('state'), udf(lambda x : x[3:])('link_id').alias('link_id'))
     c = c.filter(~c.body.contains('/s') & ~c.body.startswith('&gt;'))
     s = submissions.select('id', 'title', col('score').alias('submission_score'))
@@ -142,94 +143,61 @@ def main(context):
     t_result = neg_model.transform(pos_result)
 
     t_result = t_result.select('comment_score', 'submission_score','created_utc', 'title', 'state', 'link_id', udf(lambda x : 1 if x[1] > 0.25 else 0)('probability').alias('neg').cast(IntegerType()),'pos',col('rawPrediction').alias('neg_rawPrediction'),col('prediction').alias('neg_pred'), 'pos_rawPrediction', 'pos_pred')
-    #pos_result.show()
-    #t_result.show()
 
     # TASK 10
     # Code for task 10
     import pyspark.sql.functions as func
     # 10.1
-    #REMOVE THE COMMENT BY UNCOMMENTING WHEN SUBMIT, dont need to optimize these for now
-    #id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg')) #need to get it to also have title column not just link_id
-    #id_count = t_result.groupBy('link_id').agg(func.count('*').alias('total'))
+    id_values = t_result.groupBy(col('link_id').alias('l_id')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg')) #need to get it to also have title column not just link_id
+    id_count = t_result.groupBy('link_id', 'title').agg(func.count('*').alias('total'))
 
-    #id_count.show()
-    #id_values.show()
-
-    #id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    #id_values_ratio=id_values_ratio.select('link_id','title','Positive','Negative')
-    #id_values_ratio.show()
-    
-
-
+    id_values_ratio = id_values.join(id_count, id_count.link_id == id_values.l_id).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    id_values_ratio = id_values_ratio.select('link_id','title','Positive','Negative')
 
     # 10.2
-    #utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    #utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('date')).agg(func.count('*').alias('total'))
-    
-    #utc_values.show()
-    #utc_count.show()
+    utc_values = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('d')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    utc_count = t_result.groupBy(func.from_unixtime('created_utc', 'yyyy-MM-dd').alias('date')).agg(func.count('*').alias('total'))
 
-    #utc_values_ratio = utc_values.join(utc_count, utc_count.date == utc_values.d).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    #utc_values_ratio=utc_values_ratio.select('date','Positive','Negative')
-    #utc_values_ratio.show() #works
-
+    utc_values_ratio = utc_values.join(utc_count, utc_count.date == utc_values.d).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    utc_values_ratio=utc_values_ratio.select('date','Positive','Negative')
 
     # 10.3
-    #states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    #state_values = t_result.filter(col('state').isin(states)).groupBy(col('state').alias('s')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
-    #state_count = t_result.filter(col('state').isin(states)).groupBy('state').agg(func.count('*').alias('total'))
-    #state_count.show()
+    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    state_values = t_result.filter(col('state').isin(states)).groupBy(col('state').alias('s')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
+    state_count = t_result.filter(col('state').isin(states)).groupBy('state').agg(func.count('*').alias('total'))
 
-    #state_values_ratio = state_values.join(state_count, state_count.state == state_values.s).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
-    #state_values_ratio=state_values_ratio.select('state','Positive','Negative')
-    #state_values_ratio.show() #this is good now
-
+    state_values_ratio = state_values.join(state_count, state_count.state == state_values.s).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
+    state_values_ratio = state_values_ratio.select('state','Positive','Negative')
 
     # 10.4.comments_score
-    #i think the thing is just taking forever to save the files to csv though, not sure if its a join issue. but feel free to optimize that
-
     comment_score_values = t_result.groupBy(col('comment_score').alias('c_score')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
     comment_score_count = t_result.groupby('comment_score').agg(func.count('*').alias('total'))
-    #comment_score_count.show()
 
     comment_score_values_ratio = comment_score_values.join(comment_score_count, comment_score_count.comment_score == comment_score_values.c_score).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
     comment_score_values_ratio=comment_score_values_ratio.select('comment_score','Positive','Negative')
-    #comment_score_values_ratio.show() #works
 
     # 10.4.submissions_score
     submission_score_values = t_result.groupBy(col('submission_score').alias('s_score')).agg(func.sum('pos').alias('count_pos'),func.sum('neg').alias('count_neg'))
     submission_score_count = t_result.groupby('submission_score').agg(func.count('*').alias('total'))
-    #submission_score_count.show()
 
     submission_score_values_ratio = submission_score_values.join(submission_score_count, submission_score_count.submission_score == submission_score_values.s_score).withColumn('Positive', col('count_pos') / col('total')).withColumn('Negative',col('count_neg')/col('total'))
     submission_score_values_ratio=submission_score_values_ratio.select('submission_score','Positive','Negative')
-    #submission_score_values_ratio.show() #works
 
+    # PLOTS
+    id_values_ratio.orderBy("Positive", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Positive_Submissions.csv")
+    id_values_ratio.orderBy("Negative", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Negative_Submissions.csv") #idk if this is good
+    utc_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("time_data.csv")
+    state_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("state_data.csv")
 
-
-    #PLOTS
-    #utc_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("time_data.csv")
-    #state_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("state_data.csv")
-    #need to filter top 10 for task 10.1 on plots
-    #here it is
-
-    #the time_data and state_data csvs were good, but still need the bottom 4 csvs. takes 8 minutes to work on 0.02 of the comment data
-    #we also want the titles! not just the id.
-    #id_values_ratio.orderBy("Positive", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Positive_Submissions.csv")
-    #id_values_ratio.orderBy("Negative", ascending=False).limit(10).repartition(1).write.format("com.databricks.spark.csv").option("header","true").save("Top_Negative_Submissions.csv") #idk if this is good
-
-    #last 2 csv
+    # Last 2 csv
     submission_score_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("submission_score.csv") #NOTE this should be doing something with like limit 10 based on spec. so dataframe should be limiting this, or i can limit it in between somewhere.
     comment_score_values_ratio.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("comment_score.csv")
 
-    
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
     conf = conf.setMaster("local[*]")
     sc   = SparkContext(conf=conf)
-    sc.setLogLevel("WARN") # remove before submit
     sqlContext = SQLContext(sc)
     sc.addPyFile("cleantext.py")
     main(sqlContext)
